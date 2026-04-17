@@ -122,6 +122,16 @@ python -m pytest
 
 GitHub Actions will run the same test suite on Python 3.11 and 3.12 for every push to `main` and for pull requests.
 
+Build a source distribution and wheel locally:
+
+```bash
+. .venv/bin/activate
+python -m build
+python -m twine check dist/*
+```
+
+Create a GitHub release package build by pushing a tag like `v0.1.0`. The release workflow will build the package and attach the wheel and sdist to the GitHub release.
+
 Run a local scan against the project itself:
 
 ```bash
