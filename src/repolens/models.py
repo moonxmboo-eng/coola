@@ -30,3 +30,15 @@ class ScanResult:
     markers: list[str] = field(default_factory=list)
     tree: list[str] = field(default_factory=list)
     git: GitInfo = field(default_factory=GitInfo)
+
+
+@dataclass(slots=True)
+class CompareResult:
+    left: ScanResult
+    right: ScanResult
+    file_count_delta: int
+    dir_count_delta: int
+    total_size_delta_bytes: int
+    language_deltas: dict[str, int] = field(default_factory=dict)
+    markers_only_left: list[str] = field(default_factory=list)
+    markers_only_right: list[str] = field(default_factory=list)

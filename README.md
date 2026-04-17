@@ -19,6 +19,7 @@ It is designed for:
 - highlights newest files
 - detects common project markers
 - reads basic Git metadata when available
+- compares two directories or repositories
 
 ## Install
 
@@ -53,6 +54,18 @@ Include hidden files:
 
 ```bash
 repolens scan /path/to/project --include-hidden
+```
+
+Compare two repositories:
+
+```bash
+repolens compare /path/to/baseline /path/to/candidate
+```
+
+Write a JSON comparison report:
+
+```bash
+repolens compare repo-a repo-b --format json --output reports/diff.json
 ```
 
 ## Example output

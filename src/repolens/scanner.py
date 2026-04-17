@@ -6,7 +6,7 @@ import subprocess
 from collections import Counter
 from pathlib import Path
 
-from .models import FileEntry, GitInfo, ScanResult
+from .models import CompareResult, FileEntry, GitInfo, ScanResult
 
 IGNORED_DIRS = {
     ".git",
@@ -122,6 +122,45 @@ def scan_path(
         markers=markers,
         tree=tree,
         git=read_git_info(root_path),
+    )
+
+
+def compare_paths(
+    left: str | Path,
+    right: str | Path,
+    *,
+    include_hidden: bool = False,
+    max_files: int = 5000,
+    top_n: int = 5,
+) -> CompareResult:
+    left_result = scan_path(
+        left,
+        include_hidden=include_hidden,
+        max_files=max_files,
+        top_n=top_n,
+    )
+    right_result = scan_path(
+        right,
+        include_hidden=include_hidden,
+        max_files=max_files,
+        top_n=top_n,
+    )
+
+    all_languages = sorted(set(left_result.languages) | set(right_result.languages))
+    language_deltas = {
+        language: right_result.languages.get(language, 0) - left_result.languages.get(language, 0)
+        for language in all_languages
+    }
+
+    return CompareResult(
+        left=left_result,
+        right=right_result,
+        file_count_delta=right_result.file_count - left_result.file_count,
+        dir_count_delta=right_result.dir_count - left_result.dir_count,
+        total_size_delta_bytes=right_result.total_size_bytes - left_result.total_size_bytes,
+        language_deltas=language_deltas,
+        markers_only_left=sorted(set(left_result.markers) - set(right_result.markers)),
+        markers_only_right=sorted(set(right_result.markers) - set(left_result.markers)),
     )
 
 

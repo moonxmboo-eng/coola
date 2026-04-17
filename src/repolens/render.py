@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
-from .models import FileEntry, ScanResult
+from .models import CompareResult, FileEntry, ScanResult
 
 
-def render(result: ScanResult, output_format: str) -> str:
+def render(result: ScanResult | CompareResult, output_format: str) -> str:
     if output_format == "json":
         return render_json(result)
     if output_format == "markdown":
@@ -14,7 +14,13 @@ def render(result: ScanResult, output_format: str) -> str:
     raise ValueError(f"Unsupported format: {output_format}")
 
 
-def render_markdown(result: ScanResult) -> str:
+def render_markdown(result: ScanResult | CompareResult) -> str:
+    if isinstance(result, CompareResult):
+        return render_compare_markdown(result)
+    return render_scan_markdown(result)
+
+
+def render_scan_markdown(result: ScanResult) -> str:
     lines = [
         f"# Project Report: {result.project_name}",
         "",
@@ -64,7 +70,71 @@ def render_markdown(result: ScanResult) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def render_json(result: ScanResult) -> str:
+def render_compare_markdown(result: CompareResult) -> str:
+    lines = [
+        f"# Project Comparison: {result.left.project_name} vs {result.right.project_name}",
+        "",
+        "## Summary",
+        "",
+        f"- Left: `{result.left.root}`",
+        f"- Right: `{result.right.root}`",
+        f"- File delta: {format_signed(result.file_count_delta)}",
+        f"- Directory delta: {format_signed(result.dir_count_delta)}",
+        f"- Size delta: {format_signed_bytes(result.total_size_delta_bytes)}",
+        "",
+        "## Language Deltas",
+        "",
+    ]
+
+    if result.language_deltas:
+        lines.extend(
+            f"- {language}: {format_signed(delta)}"
+            for language, delta in result.language_deltas.items()
+            if delta != 0
+        )
+        if lines[-1] == "":
+            lines.append("- No language changes")
+    else:
+        lines.append("- No language changes")
+
+    if lines[-1] == "":
+        lines.append("- No language changes")
+
+    lines.extend(["", "## Marker Differences", ""])
+    if result.markers_only_left:
+        lines.extend(f"- Only left: {marker}" for marker in result.markers_only_left)
+    if result.markers_only_right:
+        lines.extend(f"- Only right: {marker}" for marker in result.markers_only_right)
+    if not result.markers_only_left and not result.markers_only_right:
+        lines.append("- Markers match")
+
+    lines.extend(["", "## Git Snapshot", ""])
+    lines.extend(
+        [
+            f"- Left branch: `{result.left.git.branch or 'unknown'}`",
+            f"- Right branch: `{result.right.git.branch or 'unknown'}`",
+            f"- Left dirty: {'yes' if result.left.git.dirty else 'no'}",
+            f"- Right dirty: {'yes' if result.right.git.dirty else 'no'}",
+        ]
+    )
+
+    return "\n".join(lines).strip() + "\n"
+
+
+def render_json(result: ScanResult | CompareResult) -> str:
+    if isinstance(result, CompareResult):
+        payload = {
+            "left": asdict(result.left),
+            "right": asdict(result.right),
+            "file_count_delta": result.file_count_delta,
+            "dir_count_delta": result.dir_count_delta,
+            "total_size_delta_bytes": result.total_size_delta_bytes,
+            "language_deltas": result.language_deltas,
+            "markers_only_left": result.markers_only_left,
+            "markers_only_right": result.markers_only_right,
+        }
+        return json.dumps(payload, indent=2) + "\n"
+
     payload = {
         "root": result.root,
         "project_name": result.project_name,
@@ -100,3 +170,12 @@ def format_bytes(size: int) -> str:
             return f"{value:.1f} {unit}"
         value /= 1024
     return f"{size} B"
+
+
+def format_signed(value: int) -> str:
+    return f"{value:+d}"
+
+
+def format_signed_bytes(size: int) -> str:
+    sign = "+" if size >= 0 else "-"
+    return f"{sign}{format_bytes(abs(size))}"

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from repolens.scanner import scan_path
+from repolens.scanner import compare_paths, scan_path
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_repo"
+FIXTURE_VARIANT = Path(__file__).parent / "fixtures" / "sample_repo_variant"
 
 
 def test_scan_counts_and_markers() -> None:
@@ -25,3 +26,11 @@ def test_scan_tree_contains_expected_entries() -> None:
     assert "src/" in tree_blob
     assert "app.py" in tree_blob
     assert "config.json" in tree_blob
+
+
+def test_compare_paths_detects_deltas() -> None:
+    result = compare_paths(FIXTURE, FIXTURE_VARIANT)
+    assert result.file_count_delta == -1
+    assert result.language_deltas["JavaScript"] == 1
+    assert "Node package" in result.markers_only_right
+    assert "Python package" in result.markers_only_left
