@@ -120,6 +120,8 @@ Run tests:
 python -m pytest
 ```
 
+GitHub Actions will run the same test suite on Python 3.11 and 3.12 for every push to `main` and for pull requests.
+
 Run a local scan against the project itself:
 
 ```bash
