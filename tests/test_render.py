@@ -24,6 +24,14 @@ def test_render_json_contains_project_name() -> None:
     assert '"project_name": "sample_repo"' in output
 
 
+def test_render_html_contains_title_and_sections() -> None:
+    result = scan_path(FIXTURE)
+    output = render(result, "html")
+    assert "<!DOCTYPE html>" in output
+    assert "<title>Project Report: sample_repo</title>" in output
+    assert "Tree Snapshot" in output
+
+
 def test_render_compare_markdown_contains_sections() -> None:
     result = compare_paths(FIXTURE, FIXTURE_VARIANT)
     output = render(result, "markdown")
@@ -37,3 +45,11 @@ def test_render_compare_json_contains_deltas() -> None:
     output = render(result, "json")
     assert '"file_count_delta": -1' in output
     assert '"JavaScript": 1' in output
+
+
+def test_render_compare_html_contains_title_and_delta() -> None:
+    result = compare_paths(FIXTURE, FIXTURE_VARIANT)
+    output = render(result, "html")
+    assert "<title>Project Comparison: sample_repo vs sample_repo_variant</title>" in output
+    assert "Language Deltas" in output
+    assert "Only right: Node package" in output

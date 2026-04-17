@@ -45,6 +45,30 @@ def test_cli_json_output_file(tmp_path: Path) -> None:
     assert '"project_name": "sample_repo"' in payload
 
 
+def test_cli_html_output_file(tmp_path: Path) -> None:
+    target = tmp_path / "report.html"
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "repolens.cli",
+            "scan",
+            str(FIXTURE),
+            "--format",
+            "html",
+            "--output",
+            str(target),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = target.read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in payload
+    assert "Project Report: sample_repo" in payload
+
+
 def test_cli_compare_markdown_stdout() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "repolens.cli", "compare", str(FIXTURE), str(FIXTURE_VARIANT)],
@@ -78,6 +102,31 @@ def test_cli_compare_json_output_file(tmp_path: Path) -> None:
     )
     payload = target.read_text(encoding="utf-8")
     assert '"file_count_delta": -1' in payload
+
+
+def test_cli_compare_html_output_file(tmp_path: Path) -> None:
+    target = tmp_path / "compare.html"
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "repolens.cli",
+            "compare",
+            str(FIXTURE),
+            str(FIXTURE_VARIANT),
+            "--format",
+            "html",
+            "--output",
+            str(target),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = target.read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in payload
+    assert "Project Comparison: sample_repo vs sample_repo_variant" in payload
 
 
 def test_cli_scan_respects_gitignore_by_default() -> None:

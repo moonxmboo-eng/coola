@@ -12,7 +12,7 @@ It is designed for:
 ## Features
 
 - scans any local directory
-- outputs Markdown or JSON
+- outputs Markdown, JSON, or HTML
 - shows file and directory counts
 - detects language breakdown by extension
 - reports largest files
@@ -45,6 +45,12 @@ Generate JSON:
 repolens scan /path/to/project --format json
 ```
 
+Generate HTML:
+
+```bash
+repolens scan /path/to/project --format html --output reports/project-report.html
+```
+
 Write the report to a file:
 
 ```bash
@@ -73,6 +79,12 @@ Write a JSON comparison report:
 
 ```bash
 repolens compare repo-a repo-b --format json --output reports/diff.json
+```
+
+Write an HTML comparison report:
+
+```bash
+repolens compare repo-a repo-b --format html --output reports/diff.html
 ```
 
 ## Example output

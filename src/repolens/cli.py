@@ -19,7 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("path", nargs="?", default=".", help="Directory to scan.")
     scan_parser.add_argument(
         "--format",
-        choices=["markdown", "json"],
+        choices=["markdown", "json", "html"],
         default="markdown",
         help="Output format.",
     )
@@ -54,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("right", help="Directory to compare against the baseline.")
     compare_parser.add_argument(
         "--format",
-        choices=["markdown", "json"],
+        choices=["markdown", "json", "html"],
         default="markdown",
         help="Output format.",
     )

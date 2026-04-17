@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 from dataclasses import asdict
 
@@ -7,6 +8,8 @@ from .models import CompareResult, FileEntry, ScanResult
 
 
 def render(result: ScanResult | CompareResult, output_format: str) -> str:
+    if output_format == "html":
+        return render_html(result)
     if output_format == "json":
         return render_json(result)
     if output_format == "markdown":
@@ -121,6 +124,80 @@ def render_compare_markdown(result: CompareResult) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def render_html(result: ScanResult | CompareResult) -> str:
+    if isinstance(result, CompareResult):
+        return render_compare_html(result)
+    return render_scan_html(result)
+
+
+def render_scan_html(result: ScanResult) -> str:
+    summary_items = [
+        ("Root", result.root),
+        ("Files", str(result.file_count)),
+        ("Directories", str(result.dir_count)),
+        ("Total size", format_bytes(result.total_size_bytes)),
+    ]
+    if result.git.branch or result.git.commit:
+        summary_items.extend(
+            [
+                ("Git branch", result.git.branch or "unknown"),
+                ("Git commit", result.git.commit or "unknown"),
+                ("Git dirty", "yes" if result.git.dirty else "no"),
+            ]
+        )
+
+    body = [
+        section_list("Summary", summary_items),
+        section_simple_list("Project Markers", result.markers or ["None detected"]),
+        section_simple_list("Languages", [f"{name}: {count}" for name, count in result.languages.items()] or ["No files detected"]),
+        section_simple_list("Largest Files", format_entries(result.largest_files) or ["None"]),
+        section_simple_list("Newest Files", format_entries(result.newest_files) or ["None"]),
+        section_code_block("Tree Snapshot", result.tree or ["No visible files"]),
+    ]
+    return html_page(f"Project Report: {result.project_name}", body)
+
+
+def render_compare_html(result: CompareResult) -> str:
+    language_lines = [
+        f"{language}: {format_signed(delta)}"
+        for language, delta in result.language_deltas.items()
+        if delta != 0
+    ] or ["No language changes"]
+
+    marker_lines = (
+        [f"Only left: {marker}" for marker in result.markers_only_left]
+        + [f"Only right: {marker}" for marker in result.markers_only_right]
+    ) or ["Markers match"]
+
+    body = [
+        section_list(
+            "Summary",
+            [
+                ("Left", result.left.root),
+                ("Right", result.right.root),
+                ("File delta", format_signed(result.file_count_delta)),
+                ("Directory delta", format_signed(result.dir_count_delta)),
+                ("Size delta", format_signed_bytes(result.total_size_delta_bytes)),
+            ],
+        ),
+        section_simple_list("Language Deltas", language_lines),
+        section_simple_list("Marker Differences", marker_lines),
+        section_list(
+            "Git Snapshot",
+            [
+                ("Left branch", result.left.git.branch or "unknown"),
+                ("Right branch", result.right.git.branch or "unknown"),
+                ("Left dirty", "yes" if result.left.git.dirty else "no"),
+                ("Right dirty", "yes" if result.right.git.dirty else "no"),
+            ],
+        ),
+    ]
+    return html_page(
+        f"Project Comparison: {result.left.project_name} vs {result.right.project_name}",
+        body,
+    )
+
+
 def render_json(result: ScanResult | CompareResult) -> str:
     if isinstance(result, CompareResult):
         payload = {
@@ -160,6 +237,13 @@ def render_entries(entries: list[FileEntry]) -> list[str]:
     ]
 
 
+def format_entries(entries: list[FileEntry]) -> list[str]:
+    return [
+        f"{entry.path} ({format_bytes(entry.size_bytes)}) - {entry.modified_iso}"
+        for entry in entries
+    ]
+
+
 def format_bytes(size: int) -> str:
     units = ["B", "KB", "MB", "GB"]
     value = float(size)
@@ -179,3 +263,60 @@ def format_signed(value: int) -> str:
 def format_signed_bytes(size: int) -> str:
     sign = "+" if size >= 0 else "-"
     return f"{sign}{format_bytes(abs(size))}"
+
+
+def html_page(title: str, sections: list[str]) -> str:
+    escaped_title = html.escape(title)
+    body = "\n".join(sections)
+    return (
+        "<!DOCTYPE html>\n"
+        "<html lang=\"en\">\n"
+        "<head>\n"
+        "  <meta charset=\"utf-8\">\n"
+        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        f"  <title>{escaped_title}</title>\n"
+        "  <style>\n"
+        "    :root { color-scheme: light; }\n"
+        "    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4efe6; color: #1f2937; }\n"
+        "    main { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }\n"
+        "    h1 { font-size: 2.2rem; margin-bottom: 0.5rem; }\n"
+        "    section { background: #fffdf8; border: 1px solid #e5dccf; border-radius: 16px; padding: 18px 20px; margin-top: 18px; box-shadow: 0 8px 24px rgba(39, 32, 24, 0.06); }\n"
+        "    h2 { margin-top: 0; font-size: 1.1rem; }\n"
+        "    ul { margin: 0; padding-left: 20px; }\n"
+        "    li { margin: 6px 0; }\n"
+        "    code, pre { font-family: 'JetBrains Mono', 'Consolas', monospace; }\n"
+        "    pre { white-space: pre-wrap; background: #f7f1e8; border-radius: 12px; padding: 14px; overflow-x: auto; }\n"
+        "    .label { font-weight: 700; }\n"
+        "  </style>\n"
+        "</head>\n"
+        "<body>\n"
+        "  <main>\n"
+        f"    <h1>{escaped_title}</h1>\n"
+        f"{body}\n"
+        "  </main>\n"
+        "</body>\n"
+        "</html>\n"
+    )
+
+
+def section_list(title: str, items: list[tuple[str, str]]) -> str:
+    lines = "".join(
+        f"      <li><span class=\"label\">{html.escape(label)}:</span> {html.escape(value)}</li>\n"
+        for label, value in items
+    )
+    return f"    <section>\n      <h2>{html.escape(title)}</h2>\n      <ul>\n{lines}      </ul>\n    </section>"
+
+
+def section_simple_list(title: str, items: list[str]) -> str:
+    lines = "".join(f"      <li>{html.escape(item)}</li>\n" for item in items)
+    return f"    <section>\n      <h2>{html.escape(title)}</h2>\n      <ul>\n{lines}      </ul>\n    </section>"
+
+
+def section_code_block(title: str, lines: list[str]) -> str:
+    content = "\n".join(html.escape(line) for line in lines)
+    return (
+        f"    <section>\n"
+        f"      <h2>{html.escape(title)}</h2>\n"
+        f"      <pre>{content}</pre>\n"
+        f"    </section>"
+    )
