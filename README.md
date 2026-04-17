@@ -21,6 +21,7 @@ It is designed for:
 - reads basic Git metadata when available
 - compares two directories or repositories
 - respects the root `.gitignore` by default
+- checks repositories against simple release or CI rules
 
 ## Install
 
@@ -85,6 +86,18 @@ Write an HTML comparison report:
 
 ```bash
 repolens compare repo-a repo-b --format html --output reports/diff.html
+```
+
+Run repository checks:
+
+```bash
+repolens check . --require-readme --require-license --max-files 200
+```
+
+Emit machine-readable check output:
+
+```bash
+repolens check . --format json --output reports/check.json
 ```
 
 ## Example output

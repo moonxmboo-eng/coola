@@ -157,3 +157,45 @@ def test_cli_scan_can_disable_gitignore() -> None:
         text=True,
     )
     assert "ignored.txt" in completed.stdout
+
+
+def test_cli_check_passes_for_fixture() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "repolens.cli",
+            "check",
+            str(FIXTURE),
+            "--max-files",
+            "10",
+            "--require-readme",
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0
+    assert completed.stdout.startswith("PASS:")
+
+
+def test_cli_check_fails_with_nonzero_exit() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "repolens.cli",
+            "check",
+            str(FIXTURE),
+            "--max-files",
+            "1",
+            "--require-license",
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 1
+    assert completed.stdout.startswith("FAIL:")

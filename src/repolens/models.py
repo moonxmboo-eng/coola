@@ -42,3 +42,12 @@ class CompareResult:
     language_deltas: dict[str, int] = field(default_factory=dict)
     markers_only_left: list[str] = field(default_factory=list)
     markers_only_right: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class CheckResult:
+    root: str
+    passed: bool
+    failures: list[str] = field(default_factory=list)
+    checked_rules: list[str] = field(default_factory=list)
+    scan: ScanResult | None = None
