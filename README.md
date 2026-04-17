@@ -20,6 +20,7 @@ It is designed for:
 - detects common project markers
 - reads basic Git metadata when available
 - compares two directories or repositories
+- respects the root `.gitignore` by default
 
 ## Install
 
@@ -54,6 +55,12 @@ Include hidden files:
 
 ```bash
 repolens scan /path/to/project --include-hidden
+```
+
+Disable `.gitignore` filtering:
+
+```bash
+repolens scan /path/to/project --no-gitignore
 ```
 
 Compare two repositories:

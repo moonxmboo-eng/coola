@@ -6,6 +6,8 @@ import subprocess
 from collections import Counter
 from pathlib import Path
 
+from pathspec import PathSpec
+
 from .models import CompareResult, FileEntry, GitInfo, ScanResult
 
 IGNORED_DIRS = {
@@ -61,6 +63,7 @@ def scan_path(
     root: str | Path,
     *,
     include_hidden: bool = False,
+    respect_gitignore: bool = True,
     max_files: int = 5000,
     top_n: int = 5,
 ) -> ScanResult:
@@ -76,7 +79,8 @@ def scan_path(
     language_counter: Counter[str] = Counter()
     file_entries: list[tuple[Path, int, float]] = []
     markers = detect_markers(root_path)
-    tree = build_tree(root_path, include_hidden=include_hidden)
+    gitignore_spec = load_gitignore_spec(root_path) if respect_gitignore else None
+    tree = build_tree(root_path, include_hidden=include_hidden, gitignore_spec=gitignore_spec)
 
     for current_root, dirs, files in os.walk(root_path):
         current = Path(current_root)
@@ -85,6 +89,11 @@ def scan_path(
             for name in sorted(dirs)
             if should_include_name(name, include_hidden=include_hidden)
             and not is_ignored_dir(name)
+            and not should_ignore_path(
+                (current / name).relative_to(root_path),
+                gitignore_spec=gitignore_spec,
+                is_dir=True,
+            )
         ]
 
         if current != root_path:
@@ -96,6 +105,8 @@ def scan_path(
 
             path = current / file_name
             if not path.is_file():
+                continue
+            if should_ignore_path(path.relative_to(root_path), gitignore_spec=gitignore_spec, is_dir=False):
                 continue
 
             stat = path.stat()
@@ -130,18 +141,21 @@ def compare_paths(
     right: str | Path,
     *,
     include_hidden: bool = False,
+    respect_gitignore: bool = True,
     max_files: int = 5000,
     top_n: int = 5,
 ) -> CompareResult:
     left_result = scan_path(
         left,
         include_hidden=include_hidden,
+        respect_gitignore=respect_gitignore,
         max_files=max_files,
         top_n=top_n,
     )
     right_result = scan_path(
         right,
         include_hidden=include_hidden,
+        respect_gitignore=respect_gitignore,
         max_files=max_files,
         top_n=top_n,
     )
@@ -186,7 +200,13 @@ def detect_markers(root: Path) -> list[str]:
     return found
 
 
-def build_tree(root: Path, *, include_hidden: bool, max_entries: int = 40) -> list[str]:
+def build_tree(
+    root: Path,
+    *,
+    include_hidden: bool,
+    gitignore_spec: PathSpec | None,
+    max_entries: int = 40,
+) -> list[str]:
     lines: list[str] = []
     for path in sorted(root.rglob("*")):
         if len(lines) >= max_entries:
@@ -199,12 +219,38 @@ def build_tree(root: Path, *, include_hidden: bool, max_entries: int = 40) -> li
             continue
         if not include_hidden and any(part.startswith(".") for part in parts):
             continue
+        if should_ignore_path(rel, gitignore_spec=gitignore_spec, is_dir=path.is_dir()):
+            continue
 
         depth = len(parts) - 1
         prefix = "  " * depth
         suffix = "/" if path.is_dir() else ""
         lines.append(f"{prefix}- {parts[-1]}{suffix}")
     return lines
+
+
+def load_gitignore_spec(root: Path) -> PathSpec | None:
+    gitignore_path = root / ".gitignore"
+    if not gitignore_path.exists():
+        return None
+    lines = gitignore_path.read_text(encoding="utf-8").splitlines()
+    return PathSpec.from_lines("gitignore", lines)
+
+
+def should_ignore_path(
+    rel_path: Path,
+    *,
+    gitignore_spec: PathSpec | None,
+    is_dir: bool,
+) -> bool:
+    if gitignore_spec is None:
+        return False
+    normalized = rel_path.as_posix()
+    if gitignore_spec.match_file(normalized):
+        return True
+    if is_dir and gitignore_spec.match_file(f"{normalized}/"):
+        return True
+    return False
 
 
 def to_file_entry(root: Path, item: tuple[Path, int, float]) -> FileEntry:

@@ -7,6 +7,7 @@ from repolens.scanner import compare_paths, scan_path
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_repo"
 FIXTURE_VARIANT = Path(__file__).parent / "fixtures" / "sample_repo_variant"
+GITIGNORE_FIXTURE = Path(__file__).parent / "fixtures" / "gitignore_repo"
 
 
 def test_scan_counts_and_markers() -> None:
@@ -34,3 +35,16 @@ def test_compare_paths_detects_deltas() -> None:
     assert result.language_deltas["JavaScript"] == 1
     assert "Node package" in result.markers_only_right
     assert "Python package" in result.markers_only_left
+
+
+def test_scan_respects_gitignore_by_default() -> None:
+    result = scan_path(GITIGNORE_FIXTURE, include_hidden=True)
+    assert result.file_count == 3
+    tree_blob = "\n".join(result.tree)
+    assert "ignored.txt" not in tree_blob
+    assert "output.log" not in tree_blob
+
+
+def test_scan_can_disable_gitignore_filtering() -> None:
+    result = scan_path(GITIGNORE_FIXTURE, include_hidden=True, respect_gitignore=False)
+    assert result.file_count == 4

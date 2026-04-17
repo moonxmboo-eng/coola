@@ -22,6 +22,9 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Environment :: Console",
 ]
+dependencies = [
+  "pathspec>=0.12.1",
+]
 
 [project.scripts]
 repolens = "repolens.cli:main"

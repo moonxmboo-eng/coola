@@ -34,6 +34,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include hidden files and directories.",
     )
     scan_parser.add_argument(
+        "--gitignore",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Respect the root .gitignore file when scanning.",
+    )
+    scan_parser.add_argument(
         "--max-files",
         type=int,
         default=5000,
@@ -63,6 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include hidden files and directories.",
     )
     compare_parser.add_argument(
+        "--gitignore",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Respect the root .gitignore file in both directories.",
+    )
+    compare_parser.add_argument(
         "--max-files",
         type=int,
         default=5000,
@@ -79,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
         result = scan_path(
             args.path,
             include_hidden=args.include_hidden,
+            respect_gitignore=args.gitignore,
             max_files=args.max_files,
         )
         payload = render(result, args.format)
@@ -94,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
             args.left,
             args.right,
             include_hidden=args.include_hidden,
+            respect_gitignore=args.gitignore,
             max_files=args.max_files,
         )
         payload = render(result, args.format)
